@@ -17,12 +17,6 @@ install(
   DESTINATION share/${PROJECT_NAME}
 )
 
-install(
-  PROGRAMS bridge_forward/bridge_forward.py
-  DESTINATION lib/${PROJECT_NAME}
-  RENAME bridge_forward
-)
-
 add_executable(teleop src/teleop.cpp)
 ament_target_dependencies(teleop
               rclcpp

@@ -8,31 +8,102 @@
   <xacro:arg name="sim_gazebo_classic" default="false"/>
   <xacro:arg name="use_mock_hardware" default="false"/>
   <xacro:arg name="mock_sensor_commands" default="true"/>
-  <xacro:arg name="initial_positions_file" default="$(find so101_robot_description)/urdf/initial_positions.yaml"/>
-  <xacro:arg name="controller_config_file" default="$(find so101_robot_bringup)/config/sub_controllers.yaml"/>
-  <xacro:arg name="usb_port" default="/dev/ttyACM0"/>
+  <xacro:arg name="usb_port" default="/dev/ttyACM1"/>
   <xacro:arg name="recalibrate" default="false"/>
   <xacro:arg name="arm" default="follower"/>
-  <xacro:arg name="namespace" default=""/>
   <xacro:arg name="role" default="follower"/>
-  <xacro:arg name="include_world" default="true"/>
+  <xacro:arg name="namespace" default=""/>
+  <xacro:arg name="use_world_link" default="false"/>
+  <xacro:arg name="base_xyz" default="0.0 -2.0 0.0"/>
+  <xacro:arg name="base_rpy" default="0.0 0.0 0.0"/>
+  <xacro:arg name="initial_positions_file" default="$(find so101_robot_description)/urdf/initial_positions.yaml"/>
+  <xacro:arg name="controller_config_file" default="$(find so101_robot_bringup)/config/sub_controllers.yaml"/>
+  <xacro:arg name="enable_static_cam" default="false"/>
+  <xacro:arg name="enable_wrist_cam" default="false"/>
+  <xacro:arg name="cam_static_xyz" default="0.2 0.0 0.60"/>
+  <xacro:arg name="cam_static_rpy" default="0.0 1.5708 0.0"/>
+  <xacro:arg name="cam_wrist_xyz" default="0.0 0.0 -0.02"/>
+  <xacro:arg name="cam_wrist_rpy" default="-1.5708 0.0 -1.5708"/>
+
+  <xacro:property name="use_sim" value="$(arg use_sim)"/>
+  <xacro:property name="sim_gazebo" value="$(arg sim_gazebo)"/>
+  <xacro:property name="sim_gazebo_classic" value="$(arg sim_gazebo_classic)"/>
+  <xacro:property name="use_world_link" value="$(arg use_world_link)"/>
+  <xacro:property name="enable_static_cam" value="$(arg enable_static_cam)"/>
 
   <xacro:include filename="$(find so101_robot_description)/urdf/my_so101_robot/my_so101_robot_macro.xacro" />
   <xacro:include filename="$(find so101_robot_description)/urdf/my_so101_robot/my_so101_robot_macro.ros2_control.xacro" />
+  <xacro:include filename="$(find so101_robot_description)/urdf/my_so101_robot/so101_cameras.xacro" />
+  <xacro:include filename="$(find so101_robot_description)/urdf/my_so101_robot/gz_sim_cameras.xacro" />
+  <xacro:include filename="$(find so101_robot_description)/urdf/my_so101_robot/gazebo_classic_cameras.xacro" />
 
   <xacro:so101 
     prefix="$(arg prefix)">
   </xacro:so101>
   
-  <xacro:if value="$(arg include_world)">
+  <xacro:if value="${use_world_link or use_sim or enable_static_cam}">
     <link name="world"/>
 
-    <!-- Joint from environment to base -->
-    <joint name="$(arg prefix)base_joint" type="fixed">
-      <origin xyz="0 0 0" rpy="0 0 0"/> <!-- position robot in the world -->
+    <joint name="base_joint" type="fixed">
+      <origin xyz="$(arg base_xyz)" rpy="$(arg base_rpy)"/>
       <parent link="world"/>
       <child link="$(arg prefix)base"/>
     </joint>
+  </xacro:if>
+
+  <xacro:if value="${enable_static_cam}">
+    <xacro:so101_static_camera
+      parent="world"
+      xyz="$(arg cam_static_xyz)"
+      rpy="$(arg cam_static_rpy)"
+      include_inertia="true"/>
+  </xacro:if>
+
+  <xacro:if value="$(arg enable_wrist_cam)">
+    <xacro:so101_wrist_camera
+      prefix="$(arg prefix)"
+      parent="$(arg prefix)moving_jaw_so101_v1"
+      xyz="$(arg cam_wrist_xyz)"
+      rpy="$(arg cam_wrist_rpy)"
+      include_inertia="true"/>
+  </xacro:if>
+
+  <xacro:if value="${use_sim and sim_gazebo}">
+    <xacro:gz_rgb_camera
+      reference_link="static_camera"
+      sensor_name="cam_static_sensor"
+      image_topic="/cam_overhead/image_raw"
+      camera_info_topic="/cam_overhead/camera_info"
+      width="640"
+      height="480"
+      update_rate="30.0"
+      horizontal_fov="1.20"/>
+      
+    <xacro:gz_rgb_camera
+      reference_link="$(arg prefix)wrist_camera"
+      sensor_name="$(arg prefix)cam_wrist_sensor"
+      image_topic="/$(arg prefix)cam_wrist/image_raw"
+      camera_info_topic="/$(arg prefix)cam_wrist/camera_info"
+      width="640"
+      height="480"
+      update_rate="30.0"
+      horizontal_fov="1.20"/>
+  </xacro:if>
+
+  <xacro:if value="${use_sim and sim_gazebo_classic}">
+    <xacro:gazebo_classic_rgb_camera
+      reference_link="static_camera"
+      sensor_name="cam_overhead_sensor"
+      camera_name="cam_overhead"
+      ros_namespace=""
+      optical_frame="static_camera_optical_frame"/>
+
+    <xacro:gazebo_classic_rgb_camera
+      reference_link="$(arg prefix)wrist_camera"
+      sensor_name="$(arg prefix)cam_wrist_sensor"
+      camera_name="$(arg prefix)cam_wrist"
+      ros_namespace=""
+      optical_frame="$(arg prefix)wrist_camera_optical_frame"/>
   </xacro:if>
 
   <xacro:so101_ros2_control

@@ -1,0 +1,76 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="https://www.ros.org/wiki/xacro">
+
+    <xacro:macro name="so101_static_camera" 
+                 params="
+                    xyz:='0.2 0.0 0.60'
+                    rpy:='0.0 1.5708 0.0'
+                    parent:='base'
+                    include_inertia:='false'">
+
+        <link name="static_camera">
+            <xacro:if value="${include_inertia}">
+                <inertial>
+                    <mass value="0.001"/>
+                    <inertia ixx="1e-7" ixy="0" ixz="0" iyy="1e-7" iyz="0" izz="1e-7"/>
+                </inertial>
+            </xacro:if>
+        </link>
+
+        <joint name="static_camera_joint" type="fixed">
+            <origin xyz="${xyz}" rpy="${rpy}"/>
+            <parent link="${parent}"/>
+            <child link="static_camera"/>
+        </joint>
+
+        <gazebo reference="static_camera_joint">
+            <preserveFixedJoint>true</preserveFixedJoint>
+        </gazebo>
+
+        <link name="static_camera_optical_frame"/>
+        <joint name="static_camera_optical_joint" type="fixed">
+            <origin xyz="0 0 0" rpy="${-pi/2} 0 ${-pi/2}"/>
+            <parent link="static_camera"/>
+            <child link="static_camera_optical_frame"/>
+        </joint>
+
+    </xacro:macro>
+
+    <xacro:macro name="so101_wrist_camera"
+                 params="
+                    prefix
+                    xyz:='0.0 0.0 -0.02'
+                    rpy:='-1.5708 0.0 -1.5708'
+                    parent:='moving_jaw_so101_v1'
+                    include_inertia:='false'
+                    ">
+
+        <link name="${prefix}wrist_camera">
+            <xacro:if value="${include_inertia}">
+                <inertial>
+                    <mass value="0.001"/>
+                    <inertia ixx="1e-7" ixy="0" ixz="0" iyy="1e-7" iyz="0" izz="1e-7"/>
+                </inertial>
+            </xacro:if>
+        </link>
+
+        <joint name="${prefix}wrist_camera_joint" type="fixed">
+            <origin xyz="${xyz}" rpy="${rpy}"/>
+            <parent link="${parent}" />
+            <child link="${prefix}wrist_camera"/>
+        </joint>
+
+        <gazebo reference="${prefix}wrist_camera_joint">
+            <preserveFixedJoint>true</preserveFixedJoint>
+        </gazebo>
+
+        <link name="${prefix}wrist_camera_optical_frame"/>
+        <joint name="wrist_camera_optical_joint" type="fixed">
+            <origin xyz="0 0 0" rpy="${-pi/2} 0 ${-pi/2}"/>
+            <parent link="${prefix}wrist_camera"/>
+            <child link="${prefix}wrist_camera_optical_frame"/>
+        </joint>
+    
+    </xacro:macro>
+
+</robot>

@@ -2,9 +2,7 @@ import os
 from ament_index_python.packages import get_package_prefix
 from launch import LaunchDescription, LaunchService
 from launch.actions import DeclareLaunchArgument, OpaqueFunction, IncludeLaunchDescription, SetEnvironmentVariable
-# from launch.actions import RegisterEventHandler, TimerAction
 from launch.conditions import IfCondition, UnlessCondition
-# from launch.event_handlers import OnProcessExit, OnProcessStart
 from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node, SetParameter
 from launch_ros.parameter_descriptions import ParameterValue
@@ -36,11 +34,13 @@ def launch_setup(context, *args, **kwargs):
     recalibrate = LaunchConfiguration("recalibrate")
 
     arm = LaunchConfiguration("arm")
-    arm_value = arm.perform(context)
-
+    arm_value = LaunchConfiguration("arm").perform(context)
     namespace = LaunchConfiguration("namespace")
     namespace_value = LaunchConfiguration("namespace").perform(context)
+    prefix_value = f"{namespace_value}_" if namespace_value else ""
+    use_world_link = LaunchConfiguration("use_world_link")
 
+    controller_value = LaunchConfiguration("controller").perform(context)
     use_moveit = LaunchConfiguration("use_moveit")
     use_moveit_value = (LaunchConfiguration("use_moveit").perform(context).lower() == "true")
 
@@ -48,13 +48,19 @@ def launch_setup(context, *args, **kwargs):
         namespace = ""
         namespace_value = ""
 
-    controller_value = LaunchConfiguration("controller").perform(context)
-
     use_rviz = LaunchConfiguration("use_rviz")
-    include_world = LaunchConfiguration("include_world").perform(context)
-    include_world_value = ("true" if use_sim_value else include_world) # to have fix robot on simulation world
+
+    base_xyz = LaunchConfiguration("base_xyz")
+    base_rpy = LaunchConfiguration("base_rpy")
 
     headless_value = (LaunchConfiguration('headless').perform(context).lower() == "true")
+
+    enable_static_cam = LaunchConfiguration("enable_static_cam")
+    enable_wrist_cam = LaunchConfiguration("enable_wrist_cam")
+    cam_static_xyz = LaunchConfiguration("cam_static_xyz")
+    cam_static_rpy = LaunchConfiguration("cam_static_rpy")
+    cam_wrist_xyz = LaunchConfiguration("cam_wrist_xyz")
+    cam_wrist_rpy = LaunchConfiguration("cam_wrist_rpy")
 
     initial_positions_file = PathJoinSubstitution([FindPackageShare("so101_robot_description"), "urdf", "initial_positions.yaml"])
     controllers_config_file = PathJoinSubstitution([FindPackageShare("so101_robot_bringup"), "config", "sub_controllers.yaml"])
@@ -70,6 +76,8 @@ def launch_setup(context, *args, **kwargs):
                     "my_so101_robot.urdf.xacro", # Séparer cas Leader et Follower
                     ]),
                 " ",
+                " prefix:=",
+                prefix_value,
                 " use_sim:=",
                 use_sim,
                 " sim_gazebo:=",
@@ -80,21 +88,39 @@ def launch_setup(context, *args, **kwargs):
                 use_mock_hardware,
                 " mock_sensor_commands:=",
                 mock_sensor_commands,
-                " initial_positions_file:=",
-                initial_positions_file,
-                " controller_config_file:=",
-                controllers_config_file,
                 " usb_port:=",
                 usb_port,
                 " recalibrate:=",
                 recalibrate,
                 " arm:=",
                 arm,
+                " role:=follower", # subscriber_arm.launch.py donc le comportement hardware du bras est celui d'un follower (torque enclenché) et command_interfaces existants, que ce dernier soit un follower comme leader
                 " namespace:=",
                 namespace,
-                " role:=follower", # subscriber_arm.launch.py donc le comportement hardware du bras est celui d'un follower (torque enclenché) et command_interfaces existants, que ce dernier soit un follower comme leader
-                " include_world:=",
-                include_world_value
+                " use_world_link:=",
+                use_world_link,
+                " base_xyz:='",
+                base_xyz,
+                "' base_rpy:='",
+                base_rpy,
+                "'",
+                " initial_positions_file:=",
+                initial_positions_file,
+                " controller_config_file:=",
+                controllers_config_file,
+                " enable_static_cam:=",
+                enable_static_cam,
+                " enable_wrist_cam:=",
+                enable_wrist_cam,
+                " cam_static_xyz:='",
+                cam_static_xyz,
+                "' cam_static_rpy:='",
+                cam_static_rpy,
+                "' cam_wrist_xyz:='",
+                cam_wrist_xyz,
+                "' cam_wrist_rpy:='",
+                cam_wrist_rpy,
+                "'",
             ]
         ),
         value_type=str,
@@ -105,11 +131,11 @@ def launch_setup(context, *args, **kwargs):
     robot_state_publisher_parameters = [robot_description]
 
     if namespace_value:
-        robot_state_publisher_parameters.append({"frame_prefix": f"{namespace_value}/"})
+        # robot_state_publisher_parameters.append({"frame_prefix": f"{namespace_value}/"})
         rviz_config = PathJoinSubstitution([FindPackageShare("so101_robot_description"), "rviz", f"ns_{arm_value}.rviz"])
-    else:
+    else:    
         rviz_config = PathJoinSubstitution([FindPackageShare("so101_robot_description"), "rviz", f"{arm_value}.rviz"])
-    
+        
     world_filename = ("empty_gz_sim.sdf" if sim_gazebo_value else "empty_gazebo_classic.sdf")
     world_config_value = PathJoinSubstitution([FindPackageShare("so101_robot_description"),"world",world_filename]).perform(context)
     gz_args = f"--headless-rendering -s -v 4 -r {world_config_value}" if headless_value else f"-r {world_config_value}"
@@ -210,7 +236,7 @@ def launch_setup(context, *args, **kwargs):
     gz_clock_bridge = Node(
         package="ros_gz_bridge",
         executable="parameter_bridge",
-        name="clock_bridge",
+        name="gz_clock_bridge",
         arguments=["/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock"],
         output="screen",
         condition=IfCondition(str(use_sim_value and sim_gazebo_value).lower()),
@@ -264,63 +290,6 @@ def launch_setup(context, *args, **kwargs):
         condition=IfCondition(use_moveit),
     )
 
-    # Delay loading and activation of `joint_state_broadcaster` after start of ros2_control_node
-    # if use_sim_value:
-    #     spawn_action = (
-    #         gz_spawn_entity if sim_gazebo_value else gazebo_classic_spawn_entity
-    #     )
-    #     delay_joint_state_broadcaster_spawner = RegisterEventHandler(
-    #         event_handler=OnProcessExit(
-    #             target_action=spawn_action,
-    #             on_exit=[
-    #                 TimerAction(
-    #                     period=3.0,
-    #                     actions=[joint_state_broadcaster_spawner],
-    #                 )
-    #             ],
-    #         )
-    #     )
-    # else:
-    #     delay_joint_state_broadcaster_spawner = RegisterEventHandler(
-    #         event_handler=OnProcessStart(
-    #             target_action=ros2_control_node,
-    #             on_start=[
-    #                 TimerAction(
-    #                     period=3.0,
-    #                     actions=[joint_state_broadcaster_spawner],
-    #                 )
-    #             ],
-    #         )
-    #     )
-    # delay_forward_position_controller_after_joint_state_broadcaster_spawner = RegisterEventHandler(
-    #     event_handler=OnProcessExit(
-    #         target_action=joint_state_broadcaster_spawner,
-    #         on_exit=[forward_position_controller_spawner],
-    #     ),
-    #     condition=UnlessCondition(use_moveit),
-    # )
-    # delay_joint_trajectory_controller_after_joint_state_broadcaster_spawner = RegisterEventHandler(
-    #     event_handler=OnProcessExit(
-    #     target_action=joint_state_broadcaster_spawner,
-    #     on_exit=[joint_trajectory_controller_spawner],
-    #     ),
-    #     condition=UnlessCondition(use_moveit),
-    # )
-    # delay_arm_controller_spawner_after_joint_state_broadcaster_spawner = RegisterEventHandler(
-    #     event_handler=OnProcessExit(
-    #         target_action=joint_state_broadcaster_spawner,
-    #         on_exit=[arm_controller_spawner],
-    #     ),
-    #     condition=IfCondition(use_moveit),
-    # )
-    # delay_gripper_controller_spawner_after_joint_state_broadcaster_spawner = RegisterEventHandler(
-    #     event_handler=OnProcessExit(
-    #     target_action=joint_state_broadcaster_spawner,
-    #     on_exit=[gripper_controller_spawner],
-    #     ),
-    #     condition=IfCondition(use_moveit),
-    # )
-
     joint_state_publisher_gui_node = Node(
         package='joint_state_publisher_gui',
         executable='joint_state_publisher_gui',
@@ -354,7 +323,7 @@ def launch_setup(context, *args, **kwargs):
         joint_trajectory_controller_spawner,
         arm_controller_spawner,
         gripper_controller_spawner,
-        # joint_state_broadcaster_spawner,
+        # joint_state_publisher_gui_node,
         rviz_node,
     ]
 
@@ -369,12 +338,20 @@ def generate_launch_description():
     usb_port_arg = DeclareLaunchArgument("usb_port", default_value="/dev/ttyACM1")
     recalibrate_arg = DeclareLaunchArgument("recalibrate", default_value="false")
     arm_arg = DeclareLaunchArgument("arm", default_value="follower", choices=["leader", "follower"], description="Modèle du bras")
-    namespace_arg = DeclareLaunchArgument("namespace", default_value="", description="ROS namespace; empty means root namespace",)
+    namespace_arg = DeclareLaunchArgument("namespace", default_value="",)
+    use_world_link_arg = DeclareLaunchArgument("use_world_link", default_value="false")
+    base_xyz_arg = DeclareLaunchArgument("base_xyz", default_value="0.0 0.0 0.0")
+    base_rpy_arg = DeclareLaunchArgument("base_rpy", default_value="0.0 0.0 0.0")
     controller_arg = DeclareLaunchArgument("controller", default_value="forward_position_controller", choices=["forward_position_controller", "joint_trajectory_controller"])
+    use_moveit_arg = DeclareLaunchArgument("use_moveit", default_value="false")
     use_rviz_arg = DeclareLaunchArgument("use_rviz", default_value="false")
     headless_arg = DeclareLaunchArgument("headless", default_value="false")
-    include_world_arg = DeclareLaunchArgument("include_world", default_value="false")
-    use_moveit_arg = DeclareLaunchArgument("use_moveit", default_value="false")
+    enable_static_cam_arg = DeclareLaunchArgument("enable_static_cam", default_value="false")
+    enable_wrist_cam_arg = DeclareLaunchArgument("enable_wrist_cam", default_value="false")
+    cam_static_xyz_arg = DeclareLaunchArgument("cam_static_xyz", default_value="0.2 0.0 0.60")
+    cam_static_rpy_arg = DeclareLaunchArgument("cam_static_rpy", default_value="0.0 1.5708 0.0")
+    cam_wrist_xyz_arg = DeclareLaunchArgument("cam_wrist_xyz", default_value="0.0 0.0 -0.02")
+    cam_wrist_rpy_arg = DeclareLaunchArgument("cam_wrist_rpy", default_value="-1.5708 0.0 -1.5708")
 
     return LaunchDescription([
         use_sim_arg,
@@ -386,11 +363,19 @@ def generate_launch_description():
         recalibrate_arg,
         arm_arg,
         namespace_arg,
+        use_world_link_arg,
+        base_xyz_arg,
+        base_rpy_arg,
         controller_arg,
+        use_moveit_arg,
         use_rviz_arg,
         headless_arg,
-        include_world_arg,
-        use_moveit_arg,
+        enable_static_cam_arg,
+        enable_wrist_cam_arg,
+        cam_static_xyz_arg,
+        cam_static_rpy_arg,
+        cam_wrist_xyz_arg,
+        cam_wrist_rpy_arg,
         SetParameter(name="use_sim_time", value=use_sim),
         OpaqueFunction(function = launch_setup),
     ])

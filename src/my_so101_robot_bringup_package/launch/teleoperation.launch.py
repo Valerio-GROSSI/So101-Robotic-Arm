@@ -5,25 +5,52 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.substitutions import FindPackageShare
 from launch.conditions import IfCondition
 from launch_ros.actions import Node
+from ament_index_python.packages import get_package_share_directory
+
+import os
+import yaml
 
 def launch_setup(context, *args, **kwargs):
+    publisher_use_mock_hardware = LaunchConfiguration("publisher_use_mock_hardware")
+    publisher_mock_sensor_commands = LaunchConfiguration("publisher_mock_sensor_commands")
     publisher_usb_port = LaunchConfiguration("publisher_usb_port")
-    subscriber_usb_port = LaunchConfiguration("subscriber_usb_port")
+    publisher_recalibrate = LaunchConfiguration("publisher_recalibrate")
     publisher_arm = LaunchConfiguration("publisher_arm")
-    subscriber_arm = LaunchConfiguration("subscriber_arm")
     publisher_namespace = LaunchConfiguration("publisher_namespace")
+    publisher_use_world_link = LaunchConfiguration("publisher_use_world_link")
+    publisher_use_world_link_value = LaunchConfiguration("publisher_use_world_link").perform(context).lower()
+    publisher_base_xyz = LaunchConfiguration("publisher_base_xyz")
+    publisher_base_rpy = LaunchConfiguration("publisher_base_rpy")
+
+    use_sim = LaunchConfiguration("use_sim")
+    sim_gazebo = LaunchConfiguration("sim_gazebo")
+    sim_gazebo_classic = LaunchConfiguration("sim_gazebo_classic")
+    subscriber_use_mock_hardware = LaunchConfiguration("subscriber_use_mock_hardware")
+    subscriber_mock_sensor_commands = LaunchConfiguration("subscriber_mock_sensor_commands")
+    subscriber_usb_port = LaunchConfiguration("subscriber_usb_port")
+    subscriber_recalibrate = LaunchConfiguration("subscriber_recalibrate")
+    subscriber_arm = LaunchConfiguration("subscriber_arm")
     subscriber_namespace = LaunchConfiguration("subscriber_namespace")
+    subscriber_use_world_link = LaunchConfiguration("subscriber_use_world_link")
+    subscriber_base_xyz = LaunchConfiguration("subscriber_base_xyz")
+    subscriber_base_rpy = LaunchConfiguration("subscriber_base_rpy")
     controller = LaunchConfiguration("controller")
+    use_moveit = LaunchConfiguration("use_moveit")
+    headless = LaunchConfiguration("headless")
+    enable_static_cam = LaunchConfiguration("enable_static_cam")
+    enable_wrist_cam = LaunchConfiguration("enable_wrist_cam")
+    cam_static_xyz = LaunchConfiguration("cam_static_xyz")
+    cam_static_rpy = LaunchConfiguration("cam_static_rpy")
+    cam_wrist_xyz = LaunchConfiguration("cam_wrist_xyz")
+    cam_wrist_rpy = LaunchConfiguration("cam_wrist_rpy")
+    cameras_config = LaunchConfiguration("cameras_config")
+
     use_rviz = LaunchConfiguration("use_rviz")
     use_rviz_value = (LaunchConfiguration('use_rviz').perform(context).lower() == "true")
-    rviz_config= PathJoinSubstitution([FindPackageShare("so101_robot_description"), "rviz", "dual_arm.rviz"])
+    use_unique_rviz = LaunchConfiguration("use_unique_rviz")
     use_unique_rviz_value = (LaunchConfiguration("use_unique_rviz").perform(context).lower() == "true")
-    use_sim = LaunchConfiguration("use_sim")
-    use_sim_value = (LaunchConfiguration("use_sim").perform(context).lower() == "true")
-    include_ns_world = LaunchConfiguration("include_ns_world")
-    include_ns_world_value = (LaunchConfiguration("include_ns_world").perform(context).lower() == "true")
-    use_mock_hardware = LaunchConfiguration("use_mock_hardware")
-    mock_sensor_commands = LaunchConfiguration("mock_sensor_commands")
+
+    rviz_config= PathJoinSubstitution([FindPackageShare("so101_robot_description"), "rviz", "dual_arm.rviz"])
 
     pub_arm_joint_topic = PythonExpression(["'/' + '", 
                                             publisher_namespace, 
@@ -41,34 +68,49 @@ def launch_setup(context, *args, **kwargs):
     if use_rviz_value:
         if use_unique_rviz_value:
             use_rviz_unique = "true"
+            publisher_use_world_link_value = "true"
         else:
             use_rviz_split = "true"
 
-    if use_sim_value:
-        include_ns_world = "true"
-
     publisher_launch_arguments = {
+        "use_mock_hardware": publisher_use_mock_hardware,
+        "mock_sensor_commands": publisher_mock_sensor_commands, 
         "usb_port": publisher_usb_port,
+        "recalibrate": publisher_recalibrate,
         "arm": publisher_arm,
         "namespace": publisher_namespace,
+        "use_world_link": publisher_use_world_link_value,
+        "base_xyz": publisher_base_xyz,
+        "base_rpy": publisher_base_rpy,
         "use_rviz": use_rviz_split,
-        "include_world": include_ns_world,
-        # "use_mock_hardware": use_mock_hardware,
-        # "mock_sensor_commands": mock_sensor_commands
     }
 
     subscriber_launch_arguments = {
+        "use_sim": use_sim,
+        "sim_gazebo": sim_gazebo,
+        "sim_gazebo_classic": sim_gazebo_classic,
+        "use_mock_hardware": subscriber_use_mock_hardware,
+        "mock_sensor_commands": subscriber_mock_sensor_commands,
         "usb_port": subscriber_usb_port,
+        "recalibrate": subscriber_recalibrate,
         "arm": subscriber_arm,
         "namespace": subscriber_namespace,
+        "use_world_link": subscriber_use_world_link,
+        "base_xyz": subscriber_base_xyz,
+        "base_rpy": subscriber_base_rpy,
         "controller": controller,
+        "use_moveit": use_moveit,
         "use_rviz": use_rviz_split,
-        "use_sim": use_sim,
-        "include_world": include_ns_world,
-        "use_mock_hardware": use_mock_hardware,
-        "mock_sensor_commands": mock_sensor_commands
+        "headless": headless,
+        "enable_static_cam": enable_static_cam,
+        "enable_wrist_cam": enable_wrist_cam,
+        "cam_static_xyz": cam_static_xyz,
+        "cam_static_rpy": cam_static_rpy,
+        "cam_wrist_xyz": cam_wrist_xyz,
+        "cam_wrist_rpy": cam_wrist_rpy,
+        "cameras_config": cameras_config,
     }
-
+    
     publisher_arm_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             PathJoinSubstitution([
@@ -84,7 +126,7 @@ def launch_setup(context, *args, **kwargs):
             PathJoinSubstitution([
                 FindPackageShare('so101_robot_bringup'),
                 'launch',
-                'subscriber_arm.launch.py',
+                'subscriber_arm_vision.launch.py',
             ])),
             launch_arguments=subscriber_launch_arguments.items(),
         )
@@ -103,33 +145,6 @@ def launch_setup(context, *args, **kwargs):
                   ],
             )
 
-    child_frame_id_pub = PathJoinSubstitution([publisher_namespace, "world"]) if (use_sim_value or include_ns_world_value) else PathJoinSubstitution([publisher_namespace, "base"])
-    child_frame_id_sub = PathJoinSubstitution([subscriber_namespace, "world"]) if (use_sim_value or include_ns_world_value) else PathJoinSubstitution([subscriber_namespace, "base"])
-
-    world_to_publisher_arm = Node(package="tf2_ros",
-                                  executable="static_transform_publisher",
-                                  name="world_to_subscriber_arm_node",
-                                  arguments=[
-                                        "0.0", "0.0", "0.0",
-                                        "0.0", "0.0", "0.0",
-                                        "world",
-                                        child_frame_id_pub
-                                    ],
-                                  condition=IfCondition(use_rviz_unique),
-                                )
-
-    world_to_subscriber_arm = Node(package="tf2_ros",
-                                   executable="static_transform_publisher",
-                                   name="world_to_subscriber_arm_node",
-                                   arguments=[
-                                        "0.0", "1.0", "0.0",
-                                        "0.0", "0.0", "0.0",
-                                        "world",
-                                        child_frame_id_sub
-                                    ],
-                                   condition=IfCondition(use_rviz_unique),
-                                )
-
     rviz_node = Node(
                     package="rviz2",
                     executable="rviz2",
@@ -142,40 +157,81 @@ def launch_setup(context, *args, **kwargs):
         publisher_arm_launch,
         subscriber_arm_launch,
         teleop,
-        world_to_publisher_arm,
-        world_to_subscriber_arm,
         rviz_node
     ]
 
 def generate_launch_description():
+    publisher_use_mock_hardware_arg = DeclareLaunchArgument("publisher_use_mock_hardware", default_value="false", description="Start robot with mock hardware mirroring command to its states.")
+    publisher_mock_sensor_commands_arg = DeclareLaunchArgument("publisher_mock_sensor_commands", default_value="true", description="Start robot with mock sensor commands.")
     publisher_usb_port_arg = DeclareLaunchArgument("publisher_usb_port", default_value="/dev/ttyACM0")
-    subscriber_usb_port_arg = DeclareLaunchArgument("subscriber_usb_port", default_value="/dev/ttyACM1")
+    publisher_recalibrate_arg = DeclareLaunchArgument("publisher_recalibrate", default_value="false")
     publisher_arm_arg = DeclareLaunchArgument("publisher_arm", default_value="leader", choices=["leader", "follower"], description="Modèle du bras")
-    subscriber_arm_arg = DeclareLaunchArgument("subscriber_arm", default_value="follower", choices=["leader", "follower"], description="Modèle du bras")
     publisher_namespace_arg = DeclareLaunchArgument("publisher_namespace", default_value="leader")
+    publisher_use_world_link_arg = DeclareLaunchArgument("publisher_use_world_link", default_value="false")
+    publisher_base_xyz_arg = DeclareLaunchArgument("publisher_base_xyz", default_value="0.0 -2.0 0.0")
+    publisher_base_rpy_arg = DeclareLaunchArgument("publisher_base_rpy", default_value="0.0 0.0 0.0")
+
+    use_sim_arg = DeclareLaunchArgument("use_sim", default_value='false')
+    sim_gazebo_arg = DeclareLaunchArgument("sim_gazebo", default_value='true')
+    sim_gazebo_classic_arg = DeclareLaunchArgument("sim_gazebo_classic", default_value='false')
+    subscriber_use_mock_hardware_arg = DeclareLaunchArgument("subscriber_use_mock_hardware", default_value="false", description="Start robot with mock hardware mirroring command to its states.")
+    subscriber_mock_sensor_commands_arg = DeclareLaunchArgument("subscriber_mock_sensor_commands", default_value="true", description="Start robot with mock sensor commands.")
+    subscriber_usb_port_arg = DeclareLaunchArgument("subscriber_usb_port", default_value="/dev/ttyACM1")
+    subscriber_recalibrate_arg = DeclareLaunchArgument("subscriber_recalibrate", default_value="false")
+    subscriber_arm_arg = DeclareLaunchArgument("subscriber_arm", default_value="follower", choices=["leader", "follower"], description="Modèle du bras")
     subscriber_namespace_arg = DeclareLaunchArgument("subscriber_namespace", default_value="follower")
+    subscriber_use_world_link_arg = DeclareLaunchArgument("subscriber_use_world_link", default_value="true")
+    subscriber_base_xyz_arg = DeclareLaunchArgument("subscriber_base_xyz", default_value="0.0 0.0 0.0")
+    subscriber_base_rpy_arg = DeclareLaunchArgument("subscriber_base_rpy", default_value="0.0 0.0 0.0")
     controller_arg = DeclareLaunchArgument("controller", default_value="forward_position_controller", choices=["forward_position_controller", "joint_trajectory_controller"])
+    use_moveit_arg = DeclareLaunchArgument("use_moveit", default_value="false")
+    headless_arg = DeclareLaunchArgument("headless", default_value="false")
+    enable_static_cam_arg = DeclareLaunchArgument("enable_static_cam", default_value="true")
+    enable_wrist_cam_arg = DeclareLaunchArgument("enable_wrist_cam", default_value="true")
+    cam_static_xyz_arg = DeclareLaunchArgument("cam_static_xyz", default_value="0.2 0.0 0.60")
+    cam_static_rpy_arg = DeclareLaunchArgument("cam_static_rpy", default_value="0.0 1.5708 0.0")
+    cam_wrist_xyz_arg = DeclareLaunchArgument("cam_wrist_xyz", default_value="0.0 0.0 -0.02")
+    cam_wrist_rpy_arg = DeclareLaunchArgument("cam_wrist_rpy", default_value="-1.5708 0.0 -1.5708")
+
+    cameras_config_arg = DeclareLaunchArgument("cameras_config", default_value=os.path.join(get_package_share_directory("so101_robot_bringup"), "config", "cameras", "so101_cameras.yaml"))
+
     use_rviz_arg = DeclareLaunchArgument("use_rviz", default_value="true")
-    use_unique_rviz_arg = DeclareLaunchArgument("use_unique_rviz", default_value="true")
-    use_sim_arg = DeclareLaunchArgument("use_sim", default_value="false")
-    include_ns_world_arg = DeclareLaunchArgument("include_ns_world", default_value="false")
-    use_mock_hardware_arg = DeclareLaunchArgument("use_mock_hardware", default_value="false", description="Start robot with mock hardware mirroring command to its states.")
-    mock_sensor_commands_arg = DeclareLaunchArgument("mock_sensor_commands", default_value="true", description="Start robot with mock sensor commands.")
+    use_unique_rviz_arg = DeclareLaunchArgument("use_unique_rviz", default_value="false")
 
     return LaunchDescription([
+        publisher_use_mock_hardware_arg,
+        publisher_mock_sensor_commands_arg,
         publisher_usb_port_arg,
-        subscriber_usb_port_arg,
+        publisher_recalibrate_arg,
         publisher_arm_arg,
-        subscriber_arm_arg,
         publisher_namespace_arg,
+        publisher_use_world_link_arg,
+        publisher_base_xyz_arg,
+        publisher_base_rpy_arg,
+        use_sim_arg,
+        sim_gazebo_arg,
+        sim_gazebo_classic_arg,
+        subscriber_use_mock_hardware_arg,
+        subscriber_mock_sensor_commands_arg,
+        subscriber_usb_port_arg,
+        subscriber_recalibrate_arg,
+        subscriber_arm_arg,
         subscriber_namespace_arg,
+        subscriber_use_world_link_arg,
+        subscriber_base_xyz_arg,
+        subscriber_base_rpy_arg,
         controller_arg,
+        use_moveit_arg,
+        headless_arg,
+        enable_static_cam_arg,
+        enable_wrist_cam_arg,
+        cam_static_xyz_arg,
+        cam_static_rpy_arg,
+        cam_wrist_xyz_arg,
+        cam_wrist_rpy_arg,
+        cameras_config_arg,
         use_rviz_arg,
         use_unique_rviz_arg,
-        use_sim_arg,
-        include_ns_world_arg,
-        use_mock_hardware_arg,
-        mock_sensor_commands_arg,
         OpaqueFunction(function = launch_setup),
     ])
 

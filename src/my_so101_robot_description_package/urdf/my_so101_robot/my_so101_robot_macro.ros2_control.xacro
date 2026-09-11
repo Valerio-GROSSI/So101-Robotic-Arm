@@ -79,7 +79,7 @@
 
             </hardware>
 
-            <joint name="${prefix}joint1">
+            <joint name="joint1">
                 <xacro:if value="${role == 'follower'}">
                     <command_interface name="position"/>
                 </xacro:if>  
@@ -88,7 +88,7 @@
                 </state_interface>
                 <state_interface name="velocity"/>
             </joint>
-            <joint name="${prefix}joint2">
+            <joint name="joint2">
                 <xacro:if value="${role == 'follower'}">
                     <command_interface name="position"/>
                 </xacro:if>                
@@ -97,7 +97,7 @@
                 </state_interface>
                 <state_interface name="velocity"/>
             </joint>
-            <joint name="${prefix}joint3">
+            <joint name="joint3">
                 <xacro:if value="${role == 'follower'}">
                     <command_interface name="position"/>
                 </xacro:if>                
@@ -106,7 +106,7 @@
                 </state_interface>
                 <state_interface name="velocity"/>
             </joint>
-            <joint name="${prefix}joint4">
+            <joint name="joint4">
                 <xacro:if value="${role == 'follower'}">
                     <command_interface name="position"/>
                 </xacro:if>
@@ -115,7 +115,7 @@
                 </state_interface>
                 <state_interface name="velocity"/>
             </joint>
-            <joint name="${prefix}joint5">
+            <joint name="joint5">
                 <xacro:if value="${role == 'follower'}">
                     <command_interface name="position"/>
                 </xacro:if>
@@ -124,7 +124,7 @@
                 </state_interface>
                 <state_interface name="velocity"/>
             </joint>
-            <joint name="${prefix}joint6">
+            <joint name="joint6">
                 <xacro:if value="${role == 'follower'}">
                     <command_interface name="position"/>
                 </xacro:if>

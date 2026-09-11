@@ -1,0 +1,10 @@
+cameras:
+  - name: cam_wrist # name of camera
+    camera_type: v4l2_camera #name of pkg
+    param_path: so101_v4l2_cam.yaml # path to camera specific config file
+    namespace: follower
+
+  - name: cam_overhead # name of camera
+    camera_type: depthai_camera
+    param_path: so101_depthai_cam.yaml # path to camera specific config file
+    namespace: follower

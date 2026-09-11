@@ -1,0 +1,55 @@
+<?xml version="1.0"?>
+
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:macro
+    name="gazebo_classic_rgb_camera"
+    params="
+      reference_link
+      sensor_name
+      camera_name
+      ros_namespace
+      optical_frame
+      width:=640
+      height:=480
+      update_rate:=30.0
+      horizontal_fov:=1.20">
+
+    <gazebo reference="${reference_link}">
+      <sensor name="${sensor_name}" type="camera">
+        <always_on>true</always_on>
+        <update_rate>${update_rate}</update_rate>
+        <visualize>true</visualize>
+
+        <camera name="${camera_name}">
+          <horizontal_fov>${horizontal_fov}</horizontal_fov>
+
+          <image>
+            <width>${width}</width>
+            <height>${height}</height>
+            <format>R8G8B8</format>
+          </image>
+
+          <clip>
+            <near>0.02</near>
+            <far>10.0</far>
+          </clip>
+        </camera>
+
+        <plugin
+          name="${camera_name}_ros_plugin"
+          filename="libgazebo_ros_camera.so">
+
+          <ros>
+            <namespace>${ros_namespace}</namespace>
+          </ros>
+
+          <camera_name>${camera_name}</camera_name>
+          <frame_name>${optical_frame}</frame_name>
+        </plugin>
+      </sensor>
+    </gazebo>
+
+  </xacro:macro>
+
+</robot>
