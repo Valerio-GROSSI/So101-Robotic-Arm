@@ -176,23 +176,23 @@ def launch_setup(context, *args, **kwargs):
             }.items(),
         )
 
-    rerun_bridge_proc = ExecuteProcess(
-        cmd=[
-            "pixi",
-            "run",
-            "bridge",
-            "--",
-            # "--wrist", rerun_wrist,
-            # "--overhead", rerun_overhead,
-            # "--joint-states", rerun_joint_states,
-            # "--forward-commands", rerun_forward_cmds,
-            # "--joint-trajectory", rerun_joint_traj,
-        ],
-        cwd=rerun_env_dir,
-        additional_env={"PYTHONUNBUFFERED": "1"},
-        condition=IfCondition(use_rerun),
-        output="screen",
-    )
+    # rerun_bridge_proc = ExecuteProcess(
+    #     cmd=[
+    #         "pixi",
+    #         "run",
+    #         "bridge",
+    #         "--",
+    #         # "--wrist", rerun_wrist,
+    #         # "--overhead", rerun_overhead,
+    #         # "--joint-states", rerun_joint_states,
+    #         # "--forward-commands", rerun_forward_cmds,
+    #         # "--joint-trajectory", rerun_joint_traj,
+    #     ],
+    #     cwd=rerun_env_dir,
+    #     additional_env={"PYTHONUNBUFFERED": "1"},
+    #     condition=IfCondition(use_rerun),
+    #     output="screen",
+    # )
 
     return [
         publisher_arm_launch,
